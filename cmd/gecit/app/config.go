@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net"
 	"os"
 	"path/filepath"
 	"sort"
@@ -25,6 +26,7 @@ var configKeys = []string{
 	"cgroup_path",
 	"doh_enabled",
 	"doh_upstream",
+	"exclude_cidrs",
 	"fake_ttl",
 	"interface",
 	"mss",
@@ -189,6 +191,15 @@ func validateConfig(cfg engine.Config) error {
 	if cfg.FakeTTL < 1 || cfg.FakeTTL > 255 {
 		return fmt.Errorf("fake_ttl must be 1-255, got %d", cfg.FakeTTL)
 	}
+	for _, e := range cfg.ExcludeCIDRs {
+		e = strings.TrimSpace(e)
+		if net.ParseIP(e) != nil {
+			continue
+		}
+		if _, _, err := net.ParseCIDR(e); err != nil {
+			return fmt.Errorf("exclude_cidrs: invalid IP/CIDR %q", e)
+		}
+	}
 	if len(cfg.Ports) == 0 {
 		return errors.New("ports must list at least one port")
 	}
@@ -225,6 +236,11 @@ interface: %q
 # that it never reaches the server.
 fake_ttl: %d
 
+# IPs and CIDRs skipped by fake injection, e.g. [100.64.0.0/10, 192.168.0.0/16].
+# Nearby servers would receive the fake and abort the handshake.
+# Loopback is always skipped.
+exclude_cidrs: %s
+
 # Built-in DoH resolver. Disabling it leaves system DNS untouched.
 # Write true or false. YAML reads a bare yes or no as a string, which reads
 # back here as false.
@@ -252,6 +268,7 @@ cgroup_path: %q
 		formatPorts(cfg.Ports),
 		cfg.Interface,
 		cfg.FakeTTL,
+		formatCIDRs(cfg.ExcludeCIDRs),
 		cfg.DoHEnabled,
 		cfg.DoHUpstream,
 		cfg.Verbose,
@@ -267,6 +284,16 @@ cgroup_path: %q
 
 // A YAML flow sequence needs commas. Formatting the slice with %v yields
 // "[443 8443]", which parses back as a single string.
+func formatCIDRs(cidrs []string) string {
+	out := make([]string, 0, len(cidrs))
+	for _, c := range cidrs {
+		if c = strings.TrimSpace(c); c != "" {
+			out = append(out, c)
+		}
+	}
+	return "[" + strings.Join(out, ", ") + "]"
+}
+
 func formatPorts(ports []uint16) string {
 	out := make([]string, len(ports))
 	for i, p := range ports {

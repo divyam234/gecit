@@ -19,6 +19,7 @@ func init() {
 	runCmd.RunE = runEngine
 
 	runCmd.Flags().Int("fake-ttl", 8, "TTL for fake packets (reaches DPI, not server)")
+	runCmd.Flags().StringSlice("exclude", nil, "skip fake injection for these IPs/CIDRs (e.g. 100.64.0.0/10)")
 	runCmd.Flags().Bool("doh", true, "enable built-in DoH DNS resolver")
 	runCmd.Flags().String("doh-upstream", "cloudflare", "DoH upstream: preset (cloudflare,google,quad9,nextdns,adguard) or URL")
 	runCmd.Flags().Int("mss", 88, "TCP MSS for ClientHello fragmentation (Linux only)")
@@ -31,6 +32,7 @@ func init() {
 
 	viper.BindPFlag("verbose", runCmd.Flags().Lookup("verbose"))
 	viper.BindPFlag("fake_ttl", runCmd.Flags().Lookup("fake-ttl"))
+	viper.BindPFlag("exclude_cidrs", runCmd.Flags().Lookup("exclude"))
 	viper.BindPFlag("doh_enabled", runCmd.Flags().Lookup("doh"))
 	viper.BindPFlag("doh_upstream", runCmd.Flags().Lookup("doh-upstream"))
 	viper.BindPFlag("mss", runCmd.Flags().Lookup("mss"))
@@ -85,6 +87,7 @@ func engineConfigFromViper(v *viper.Viper) (engine.Config, error) {
 		Interface:         v.GetString("interface"),
 		CgroupPath:        v.GetString("cgroup_path"),
 		FakeTTL:           v.GetInt("fake_ttl"),
+		ExcludeCIDRs:      v.GetStringSlice("exclude_cidrs"),
 		DoHEnabled:        v.GetBool("doh_enabled"),
 		DoHUpstream:       v.GetString("doh_upstream"),
 		Verbose:           v.GetBool("verbose"),

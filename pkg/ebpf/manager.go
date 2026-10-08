@@ -31,6 +31,7 @@ type Config struct {
 	RestoreAfterBytes int
 	Ports             []uint16
 	ExcludeIPs        []net.IP
+	ExcludeNets       []*net.IPNet
 	CgroupPath        string
 	FakeTTL           int
 }
@@ -200,6 +201,11 @@ func (m *Manager) injectFake(evt gecitbpf.ConnEvent) {
 		Ack:     evt.Ack,
 	}
 
+	if isExcluded(m.cfg.ExcludeNets, conn.DstIP) {
+		m.logger.WithField("dst", conn.DstIP.String()).Debug("skipping excluded destination")
+		return
+	}
+
 	if err := m.rawSock.SendFake(conn, fake.TLSClientHello, m.cfg.FakeTTL); err != nil {
 		m.injectErrors.Add(1)
 		m.logger.WithError(err).Warn("failed to send fake packet")
@@ -221,6 +227,20 @@ func (m *Manager) injectFake(evt gecitbpf.ConnEvent) {
 		"ack":   evt.Ack,
 		"ttl":   m.cfg.FakeTTL,
 	}).Info("fake ClientHello injected")
+}
+
+// isExcluded reports whether fake injection must be skipped for ip.
+// Loopback is always skipped: a fake can never expire before a local server.
+func isExcluded(nets []*net.IPNet, ip net.IP) bool {
+	if ip.IsLoopback() {
+		return true
+	}
+	for _, n := range nets {
+		if n.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 // Stop detaches the BPF program and releases all resources.

@@ -335,6 +335,7 @@ func fileConfig() (engine.Config, error) {
 	v.SetDefault("cgroup_path", defaults.CgroupPath)
 	v.SetDefault("doh_enabled", defaults.DoHEnabled)
 	v.SetDefault("doh_upstream", defaults.DoHUpstream)
+	v.SetDefault("exclude_cidrs", defaults.ExcludeCIDRs)
 	v.SetDefault("fake_ttl", defaults.FakeTTL)
 	v.SetDefault("interface", defaults.Interface)
 	v.SetDefault("mss", defaults.MSS)
@@ -397,6 +398,7 @@ var flagForKey = map[string]string{
 	"cgroup_path":         "cgroup",
 	"doh_enabled":         "doh",
 	"doh_upstream":        "doh-upstream",
+	"exclude_cidrs":       "exclude",
 	"fake_ttl":            "fake-ttl",
 	"interface":           "interface",
 	"mss":                 "mss",

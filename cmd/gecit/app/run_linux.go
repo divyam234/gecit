@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/url"
 	"strings"
@@ -25,6 +26,11 @@ func newPlatformEngine(cfg engine.Config, logger *logrus.Logger) (engine.Engine,
 		upstream = "cloudflare"
 	}
 
+	excludeNets, err := parseExcludeNets(cfg.ExcludeCIDRs)
+	if err != nil {
+		return nil, err
+	}
+
 	return &ebpfEngine{
 		mgr: bpf.NewManager(bpf.Config{
 			MSS:               cfg.MSS,
@@ -32,6 +38,7 @@ func newPlatformEngine(cfg engine.Config, logger *logrus.Logger) (engine.Engine,
 			RestoreAfterBytes: cfg.RestoreAfterBytes,
 			Ports:             cfg.Ports,
 			ExcludeIPs:        dohUpstreamIPs(upstream),
+			ExcludeNets:       excludeNets,
 			CgroupPath:        cfg.CgroupPath,
 			FakeTTL:           cfg.FakeTTL,
 		}, logger),
@@ -74,6 +81,32 @@ func dohUpstreamIPs(upstream string) []net.IP {
 		}
 	}
 	return ips
+}
+
+// parseExcludeNets parses user exclusion entries. Bare IPs are treated as
+// single-host CIDRs.
+func parseExcludeNets(entries []string) ([]*net.IPNet, error) {
+	var nets []*net.IPNet
+	for _, e := range entries {
+		e = strings.TrimSpace(e)
+		if e == "" {
+			continue
+		}
+		if ip := net.ParseIP(e); ip != nil {
+			bits := 128
+			if ip.To4() != nil {
+				bits = 32
+			}
+			nets = append(nets, &net.IPNet{IP: ip, Mask: net.CIDRMask(bits, bits)})
+			continue
+		}
+		_, n, err := net.ParseCIDR(e)
+		if err != nil {
+			return nil, fmt.Errorf("exclude %q: %w", e, err)
+		}
+		nets = append(nets, n)
+	}
+	return nets, nil
 }
 
 func (e *ebpfEngine) Start(ctx context.Context) error {

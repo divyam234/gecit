@@ -10,6 +10,7 @@ type Config struct {
 	Interface         string   `yaml:"interface" mapstructure:"interface" json:"interface"`
 	CgroupPath        string   `yaml:"cgroup_path" mapstructure:"cgroup_path" json:"cgroup_path"`
 	FakeTTL           int      `yaml:"fake_ttl" mapstructure:"fake_ttl" json:"fake_ttl"`
+	ExcludeCIDRs      []string `yaml:"exclude_cidrs" mapstructure:"exclude_cidrs" json:"exclude_cidrs"`
 	DoHEnabled        bool     `yaml:"doh_enabled" mapstructure:"doh_enabled" json:"doh_enabled"`
 	DoHUpstream       string   `yaml:"doh_upstream" mapstructure:"doh_upstream" json:"doh_upstream"`
 	Verbose           bool     `yaml:"verbose" mapstructure:"verbose" json:"verbose"`
